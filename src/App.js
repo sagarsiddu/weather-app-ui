@@ -1,28 +1,72 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./App.css";
+import Login from "./Login";
 
 function App() {
   const [city, setCity] = useState("");
   const [forecast, setForecast] = useState([]);
   const [error, setError] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("http://localhost:8084/api/weather/user", {
+          credentials: "include",
+        });
+
+        if (res.status === 200) {
+          const data = await res.json();
+          setUser(data);
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+        }
+      } catch (err) {
+        console.error("Auth check failed:", err);
+        setIsAuthenticated(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
 
   const fetchWeather = async () => {
     setError("");
     setForecast([]);
 
     try {
-      const response = await fetch(`http://localhost:8080/api/weather/${city}`);
+      const response = await fetch(`http://localhost:8084/api/weather/${city}`, {
+        credentials: "include",
+      });
+
       if (!response.ok) throw new Error("Failed to fetch weather forecast");
       const data = await response.json();
-      setForecast(data.list.slice(0, 5)); // Take first 5 entries (3-hour intervals)
+      setForecast(data.list.slice(0, 5));
     } catch (err) {
       setError(err.message);
     }
   };
 
+  if (loading) return <div className="app">Checking authentication...</div>;
+
+  if (!isAuthenticated) {
+    return (
+      <div className="app">
+        <h1>Login to Use the Weather App</h1>
+        <Login />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <h1>🌤️ 5-Slot Weather Forecast</h1>
+      <p>Welcome, {user?.name || "User"}!</p>
 
       <div className="search">
         <input
